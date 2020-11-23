@@ -24,10 +24,11 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         new PageRank().CalculatePR();
+
         //File wiki_input_file = new File("skwiki-latest-pages-articles.xml.bz2");
+        //new WikiParser().getTitleToIdMatching(wiki_input_file);
         //new WikiParser().parseLinks(wiki_input_file);
 
-        //parseIDsAndRedirects();
 
         //FileReader fileReader = new FileReader("redirects.txt");
         //String json = new String(Files.readAllBytes(Path.of("redirects.txt")));
@@ -35,51 +36,12 @@ public class Main {
         //System.out.println(redirects.size());
     }
 
-    public static void parseIDsAndRedirects() throws Exception
-    {
-        File wiki_input_file = new File("skwiki-latest-pages-articles.xml.bz2");
-
-        StopWatch watch = new StopWatch();
-        watch.start();
-
-        new WikiParser().getTitleToIdMatching(wiki_input_file);
-        //var parseResult = new WikiParser().getTitleToIdMatching(wiki_input_file);
-        //Map<String, String> pageTitleIds = parseResult.getLeft();
-        //MultiValueMap redirects = parseResult.getRight();
-
-        watch.stop();
-        System.out.println("Time elapsed: " + watch.getTime());
-        //System.out.println("Article count: " + counter);
-        //System.out.println("Articles in ns 0 count: " + pageTitleIds.size());
-
-        watch.reset();
-
-        watch.start();
-        System.out.println("Starting to write articles");
-        //FileWriter fileWriter = new FileWriter("articles.txt");
-        //JSONObject json = new JSONObject(pageTitleIds);
-        System.out.println("Writing to file " + watch.getTime());
-        //fileWriter.write(json.toJSONString());
-        //fileWriter.close();
-
-        watch.stop();
-        System.out.println("Done writing articles to file " + watch.getTime());
-
-        watch.reset();
-
-        watch.start();
-        System.out.println("Starting to write redirects");
-        //FileWriter fileWriterRedirects = new FileWriter("redirects.txt");
-        //JSONObject jsonRedirects = new JSONObject(redirects);
-        System.out.println("Writing to file " + watch.getTime());
-        //fileWriterRedirects.write(jsonRedirects.toJSONString());
-        //ileWriterRedirects.close();
-
-        watch.stop();
-        System.out.println("Done writing redirects to file " + watch.getTime());
-        //System.out.println("Redirect count: " + redirects.totalSize());
-    }
-
+    /**
+     * Serializes a given JSON string into a MultiMap
+     * @param serializedString input JSON string
+     * @return  serialized MultiMap
+     * @throws Exception
+     */
     public static MultiMap doDeserialization(String serializedString) throws Exception {
 
         ObjectMapper mapper = new ObjectMapper();
@@ -88,6 +50,13 @@ public class Main {
         return (MultiMap) map;
     }
 
+
+    /**
+     * Serializes a given JSON string into a MultiMap and formats it correctly
+     * @param serializedString input JSON string
+     * @return  serialized and correctly formated MultiMap
+     * @throws Exception
+     */
     public static MultiMap doDeserializationAndFormat(String serializedString) throws Exception {
         MultiMap source = doDeserialization(serializedString);
         MultiMap result  =  new MultiValueMap();

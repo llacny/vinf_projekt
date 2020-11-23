@@ -37,7 +37,7 @@ public class WikiParser {
     private final String pageEnd = "</page>";
     private final Pattern pageEndPattern = Pattern.compile(pageEnd);
 
-    private final String redirect = "<text.*>#(REDIRECT|presmeruj) \\[\\[(.*)\\]\\]</text>";
+    private final String redirect = "<text.*>#(REDIRECT|redirect|PRESMERUJ|presmeruj) ?\\[\\[(.*)\\]\\]</text>";
     private final  Pattern redirectPattern = Pattern.compile(redirect);
 
     private final String link = "\\[\\[([^\\|\\[\\]\\#\\{\\}]*)\\|?([^\\|\\[\\]\\#\\{\\}]*)\\]\\]";
@@ -46,14 +46,125 @@ public class WikiParser {
     private final Map<String,String> titleToId = new HashMap<>();
     private final MultiValueMap redirects = new MultiValueMap();
 
-    public void getTitleToIdMatching(File file) throws Exception {
+    /**
+     * Parses input file and procudes a new text file with all redirect links
+     * @param file input file in .bz2 format
+     * @throws Exception
+     */
+    public void getRedirects(File file) throws Exception {
 
-        //FileReader fileReader = new FileReader("redirects.txt");
-        //String json = new String(Files.readAllBytes(Path.of("redirects.txt")));
-        //MultiValueMap redirects = (MultiValueMap) doDeserializationAndFormat(json);
+        FileWriter fileWriterRedirects = new FileWriter("redirectsV4.txt");
 
-        //FileWriter fileWriterArticles = new FileWriter("articlesV2.txt");
-        FileWriter fileWriterRedirects = new FileWriter("redirectsV2.txt");
+        InputStream fileStream = new FileInputStream(file);
+        BZip2CompressorInputStream bzIn = new BZip2CompressorInputStream(fileStream);
+        Reader decoder = new InputStreamReader(bzIn, UTF_8);
+        BufferedReader bufferedReader = new BufferedReader(decoder);
+
+        boolean pageFound = false;
+        boolean titleFound = false;
+        boolean idFound = false;
+        boolean nsFound = false;
+        boolean redirectFound = false;
+        //int counter = 0;
+
+        //for(int i = 0; i < 10000; i++) {
+        String line;
+
+        String title = "";
+        String id = "";
+        int ns = -1;
+
+        while( (line = bufferedReader.readLine()) != null) {
+            //for(int i = 0; i < 1000000; i++){
+            //    line = bufferedReader.readLine();
+
+            if(!pageFound && !findPageStart(line))
+                continue;
+            else
+                pageFound = true;
+
+            if(!titleFound) {
+                title = findTitle(line);
+                if (title == null)
+                    continue;
+                else {
+                    //counter++;
+                    titleFound = true;
+                    continue;
+                }
+            }
+
+            if(!nsFound){
+                ns = findNs(line);
+                if (ns == -1)
+                    continue;
+                else{
+                    nsFound = true;
+                    continue;
+                }
+            }
+
+            if(!idFound){
+                id = findID(line);
+                if (id == null)
+                    continue;
+                else {
+                    idFound = true;
+                    continue;
+                }
+            }
+
+                //this block is used to find redirects
+                String redirect;
+                if( !redirectFound && ((redirect = detectRedirect(line)) != null))
+                {
+                    //System.out.println("redirect found");
+                    if(ns == 0)
+                        redirects.put(title,redirect);
+                    redirectFound = true;
+                    continue;
+                }
+
+            if(findPageEnd(line)){
+
+                //counter++;
+
+                if(ns == 0) {
+                    if(!redirects.containsKey(title)) {
+                        //fileWriterArticles.write(title + "#" + id);
+                        //fileWriterArticles.write(System.lineSeparator());
+                    }
+                }
+
+                pageFound = false;
+                titleFound = false;
+                title = "";
+                idFound = false;
+                id = "";
+                nsFound = false;
+                ns = -1;
+                redirectFound = false;
+            }
+        }
+
+        JSONObject jsonRedirects = new JSONObject(redirects);
+        fileWriterRedirects.write(jsonRedirects.toJSONString());
+        fileWriterRedirects.close();
+        //fileWriterArticles.close();
+    }
+
+    /**
+     * Parses input file and produces a new text file containing all title-id pairs of articles in namespace 0
+     * @param file input file in .bz2 format
+     * @throws Exception
+     */
+    public void getTitles(File file) throws Exception {
+
+        String json = new String(Files.readAllBytes(Path.of("redirectsV4.txt")));
+        var redirects = (MultiValueMap) doDeserializationAndFormat(json);
+
+        FileWriter fileWriterArticles = new FileWriter("articlesV4.txt");
+        //FileWriter fileWriterRedirects = new FileWriter("redirectsV4.txt");
 
         InputStream fileStream = new FileInputStream(file);
         BZip2CompressorInputStream bzIn = new BZip2CompressorInputStream(fileStream);
@@ -113,7 +224,7 @@ public class WikiParser {
                         continue;
                     }
                 }
-
+/*
                 //this block is used to find redirects
                 String redirect;
                 if( !redirectFound && ((redirect = detectRedirect(line)) != null))
@@ -124,15 +235,15 @@ public class WikiParser {
                     redirectFound = true;
                     continue;
                 }
-
+*/
                 if(findPageEnd(line)){
 
                     //counter++;
 
                     if(ns == 0) {
                         if(!redirects.containsKey(title)) {
-                            //fileWriterArticles.write(title + "#" + id);
-                            //fileWriterArticles.write(System.lineSeparator());
+                            fileWriterArticles.write(title + "#" + id);
+                            fileWriterArticles.write(System.lineSeparator());
                         }
                     }
 
@@ -147,17 +258,23 @@ public class WikiParser {
                 }
             }
 
-        JSONObject jsonRedirects = new JSONObject(redirects);
-        fileWriterRedirects.write(jsonRedirects.toJSONString());
-        fileWriterRedirects.close();
+        //JSONObject jsonRedirects = new JSONObject(redirects);
+        //fileWriterRedirects.write(jsonRedirects.toJSONString());
+        //fileWriterRedirects.close();
+        fileWriterArticles.close();
     }
 
+    /**
+     * Parses input file and produces a new text file with JSONs of links from all arcitles in namespace 0
+     * @param file input file in .bz2 format
+     * @throws Exception
+     */
     public void parseLinks(File file) throws Exception
     {
-        String json = new String(Files.readAllBytes(Path.of("redirectsV2.txt")));
+        String json = new String(Files.readAllBytes(Path.of("redirectsV4.txt")));
         MultiValueMap redirects = (MultiValueMap) doDeserializationAndFormat(json);
 
-        FileWriter fileWriter = new FileWriter("links.txt");
+        FileWriter fileWriter = new FileWriter("linksV4.txt");
 
         InputStream fileStream = new FileInputStream(file);
         BZip2CompressorInputStream bzIn = new BZip2CompressorInputStream(fileStream);
@@ -253,7 +370,11 @@ public class WikiParser {
     }
 
 
-
+    /**
+     * Matches title regex on a given string
+     * @param line input string
+     * @return title if found, null if not
+     */
     private String findTitle(String line)
     {
         Matcher m = titlePattern.matcher(line);
@@ -264,6 +385,11 @@ public class WikiParser {
             return null;
     }
 
+    /**
+     * Matches namespace regex on a given string
+     * @param line input string
+     * @return namespace if found, -1 if not
+     */
     private int findNs(String line)
     {
         Matcher m = nsPattern.matcher(line);
@@ -274,6 +400,11 @@ public class WikiParser {
             return -1;
     }
 
+    /**
+     * Matches id regex on a given string
+     * @param line input string
+     * @return id if found, null if not
+     */
     private String findID(String line)
     {
         Matcher m = idPattern.matcher(line);
@@ -284,18 +415,33 @@ public class WikiParser {
             return null;
     }
 
+    /**
+     * Matches opening page tag regex on a given string
+     * @param line input string
+     * @return true if found, false if not
+     */
     private boolean findPageStart(String line)
     {
         Matcher m = pageStartPattern.matcher(line);
         return m.find();
     }
 
+    /**
+     * Matches closing page tag regex on a given string
+     * @param line input string
+     * @return true if found, false if not
+     */
     private boolean findPageEnd(String line)
     {
         Matcher m = pageEndPattern.matcher(line);
         return m.find();
     }
 
+    /**
+     * Matches redirect link regex on a given string
+     * @param line input string
+     * @return redirect link if found, null if not
+     */
     private String detectRedirect(String line)
     {
         Matcher m = redirectPattern.matcher(line);
