@@ -271,10 +271,27 @@ public class WikiParser {
      */
     public void parseLinks(File file) throws Exception
     {
+        BufferedReader bufferreader = new BufferedReader( new FileReader("articlesV4.txt"));
+
+        String articleTitle = "(.*)#(.*)";
+        Pattern pattern = Pattern.compile(articleTitle);
+        //Vector<String> titles = new Vector<>();
+        Map<String,Integer> titles = new HashMap<>();
+
+        String article;
+        while( (article = bufferreader.readLine()) != null) {
+            Matcher m = pattern.matcher(article);
+            m.find();
+            String title = m.group(1);
+            titles.put(title,0);
+        }
+        System.out.println("titles parsed");
+
         String json = new String(Files.readAllBytes(Path.of("redirectsV4.txt")));
         MultiValueMap redirects = (MultiValueMap) doDeserializationAndFormat(json);
+        System.out.println("redirects loaded");
 
-        FileWriter fileWriter = new FileWriter("linksV4.txt");
+        FileWriter fileWriter = new FileWriter("links-nulls.txt");
 
         InputStream fileStream = new FileInputStream(file);
         BZip2CompressorInputStream bzIn = new BZip2CompressorInputStream(fileStream);
@@ -339,7 +356,9 @@ public class WikiParser {
                 Matcher m = linkPattern.matcher(line);
                 while (m.find()){
                     //System.out.println("orig page: " + title + " link: " + m.group(0));
+                    if(titles.containsKey(m.group(1)))
                         links.put(title,m.group(1));
+
                 }
 
             }
@@ -352,8 +371,12 @@ public class WikiParser {
                     fileWriter.write(jsonL.toJSONString());
                     fileWriter.write(System.lineSeparator());
                 }
-                //if(ns == 0)
-                //titleToId.put(title,id);
+                if(links.isEmpty() && ns == 0){
+                    links.put(title,"-");
+                    JSONObject jsonL = new JSONObject(links);
+                    fileWriter.write(jsonL.toJSONString());
+                    fileWriter.write(System.lineSeparator());
+                }
 
                 pageFound = false;
                 titleFound = false;
